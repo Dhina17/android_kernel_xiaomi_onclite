@@ -541,7 +541,7 @@ dtb-$(CONFIG_ARCH_MSM8953) += msm8953-cdp.dtb \
 	msm8953-cdp-1200p.dtb \
 	msm8953-iot-mtp.dtb \
 	apq8053-iot-mtp.dtb \
-	apq8053-lite-dragon-v1.0.dtb \
+#	apq8053-lite-dragon-v1.0.dtb \
 	apq8053-lite-dragon-v2.0.dtb \
 	apq8053-lite-dragon-v2.1.dtb \
 	apq8053-lite-dragon-v2.2.dtb \
@@ -615,7 +615,7 @@ dtb-$(CONFIG_ARCH_SDM450) += sdm450-rcm.dtb \
 	sda450-cdp.dtb \
 	sda450-mtp.dtb \
 	sdm450-qrd.dtb \
-	sdm450-pmi8940-mtp.dtb \
+#       sdm450-pmi8940-mtp.dtb \
 	sdm450-pmi8937-mtp.dtb \
 	sdm450-iot-mtp.dtb \
 	sdm450-qrd-sku4.dtb \
