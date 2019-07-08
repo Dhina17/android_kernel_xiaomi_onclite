@@ -1,4 +1,5 @@
 /* Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -47,6 +48,15 @@
 #define MAX_ON_DEMAND_SUPPLY_NAME_LENGTH	64
 #define BUS_DOWN 1
 
+/*********Added by Quanyu.Lee*********/
+/****************Begin****************/
+/*******for the PA working mode*******/
+
+#define K8_MODE_NUM 2
+
+/*****************End*****************/
+/*********Added by Quanyu.Lee*********/
+
 /*
  * 200 Milliseconds sufficient for DSP bring up in the lpass
  * after Sub System Restart
@@ -58,7 +68,7 @@
 #define SPK_PMD 2
 #define SPK_PMU 3
 
-#define MICBIAS_DEFAULT_VAL 1800000
+#define MICBIAS_DEFAULT_VAL 2700000
 #define MICBIAS_MIN_VAL 1600000
 #define MICBIAS_STEP_SIZE 50000
 
@@ -2851,6 +2861,12 @@ static int msm_anlg_cdc_lo_dac_event(struct snd_soc_dapm_widget *w,
 			MSM89XX_PMIC_ANALOG_RX_LO_DAC_CTL, 0x08, 0x08);
 		snd_soc_update_bits(codec,
 			MSM89XX_PMIC_ANALOG_RX_LO_DAC_CTL, 0x40, 0x40);
+/*********Added by Quanyu.Lee*********/
+/****************Begin****************/
+/*****for the line out gain issue*****/
+        msleep(5);
+/*****************End*****************/
+/*********Added by Quanyu.Lee*********/
 		break;
 	case SND_SOC_DAPM_POST_PMU:
 		snd_soc_update_bits(codec,
@@ -3237,7 +3253,7 @@ static struct snd_soc_dai_driver msm_anlg_cdc_i2s_dai[] = {
 	},
 };
 
-
+extern unsigned char aw87329_hw_off(void);
 static int msm_anlg_cdc_codec_enable_lo_pa(struct snd_soc_dapm_widget *w,
 					   struct snd_kcontrol *kcontrol,
 					   int event)
@@ -3251,6 +3267,8 @@ static int msm_anlg_cdc_codec_enable_lo_pa(struct snd_soc_dapm_widget *w,
 				       DIG_CDC_EVENT_RX3_MUTE_OFF);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
+		aw87329_hw_off();
+		usleep_range(4000, 5000);
 		msm_anlg_cdc_dig_notifier_call(codec,
 				       DIG_CDC_EVENT_RX3_MUTE_ON);
 		break;
