@@ -1,4 +1,5 @@
 /* Copyright (c) 2013-2019, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -626,7 +627,8 @@ static void msm_isp_update_framedrop_reg(struct msm_vfe_axi_stream *stream_info,
 				MSM_VFE_STREAM_STOP_PERIOD;
 	}
 
-	if (stream_info->undelivered_request_cnt > 0)
+	if (stream_info->undelivered_request_cnt > 0 &&
+		drop_reconfig != 1)
 		stream_info->current_framedrop_period =
 			MSM_VFE_STREAM_STOP_PERIOD;
 	/*
@@ -683,22 +685,9 @@ void msm_isp_process_reg_upd_epoch_irq(struct vfe_device *vfe_dev,
 			__msm_isp_axi_stream_update(stream_info, ts);
 			break;
 		case MSM_ISP_COMP_IRQ_EPOCH:
-			if (stream_info->state == ACTIVE) {
-				struct vfe_device *temp = NULL;
-				struct msm_vfe_common_dev_data *c_data;
-				uint32_t drop_reconfig =
-					vfe_dev->isp_page->drop_reconfig;
-				if (stream_info->num_isp > 1 &&
-					vfe_dev->pdev->id == ISP_VFE0) {
-					c_data = vfe_dev->common_data;
-					temp = c_data->dual_vfe_res->vfe_dev[
-						ISP_VFE1];
-					drop_reconfig =
-						temp->isp_page->drop_reconfig;
-				}
+			if (stream_info->state == ACTIVE)
 				msm_isp_update_framedrop_reg(stream_info,
-					drop_reconfig);
-			}
+					vfe_dev->isp_page->drop_reconfig);
 			break;
 		default:
 			WARN(1, "Invalid irq %d\n", irq);
@@ -3652,8 +3641,7 @@ static int msm_isp_request_frame(struct vfe_device *vfe_dev,
 		vfe_ops.axi_ops.get_pingpong_status(vfe_dev);
 
 	/* As MCT is still processing it, need to drop the additional requests*/
-	if (vfe_dev->isp_page->drop_reconfig &&
-		frame_src == VFE_PIX_0) {
+	if (vfe_dev->isp_page->drop_reconfig) {
 		pr_err("%s: MCT has not yet delayed %d drop request %d\n",
 			__func__, vfe_dev->isp_page->drop_reconfig, frame_id);
 		goto error;
@@ -3676,19 +3664,16 @@ static int msm_isp_request_frame(struct vfe_device *vfe_dev,
 		pr_debug("%s:%d invalid time to request frame %d try drop_reconfig\n",
 			__func__, __LINE__, frame_id);
 		vfe_dev->isp_page->drop_reconfig = 1;
-		return 0;
 	} else if ((vfe_dev->axi_data.src_info[frame_src].active) &&
-			((frame_id ==
-			vfe_dev->axi_data.src_info[frame_src].frame_id) ||
-			(frame_id == vfe_dev->irq_sof_id)) &&
+			(frame_id ==
+			vfe_dev->axi_data.src_info[frame_src].frame_id) &&
 			(stream_info->undelivered_request_cnt <=
 				MAX_BUFFERS_IN_HW)) {
 		vfe_dev->isp_page->drop_reconfig = 1;
-		pr_debug("%s: vfe_%d request_frame %d cur frame id %d pix %d try drop_reconfig\n",
+		pr_debug("%s: vfe_%d request_frame %d cur frame id %d pix %d\n",
 			__func__, vfe_dev->pdev->id, frame_id,
 			vfe_dev->axi_data.src_info[VFE_PIX_0].frame_id,
 			vfe_dev->axi_data.src_info[VFE_PIX_0].active);
-		return 0;
 	} else if ((vfe_dev->axi_data.src_info[frame_src].active && (frame_id !=
 		vfe_dev->axi_data.src_info[frame_src].frame_id + vfe_dev->
 		axi_data.src_info[frame_src].sof_counter_step)) ||
@@ -3790,16 +3775,11 @@ static int msm_isp_request_frame(struct vfe_device *vfe_dev,
 		if (rc) {
 			spin_unlock_irqrestore(&stream_info->lock, flags);
 			stream_info->undelivered_request_cnt--;
-			queue_req = list_first_entry_or_null(
-				&stream_info->request_q,
-				struct msm_vfe_frame_request_queue, list);
-			if (queue_req) {
-				queue_req->cmd_used = 0;
-				list_del(&queue_req->list);
-				stream_info->request_q_cnt--;
-			}
-			pr_err_ratelimited("%s:%d fail to cfg HAL buffer stream %x\n",
-				__func__, __LINE__, stream_info->stream_id);
+			pr_err_ratelimited("%s:%d fail to cfg HAL buffer\n",
+				__func__, __LINE__);
+			queue_req->cmd_used = 0;
+			list_del(&queue_req->list);
+			stream_info->request_q_cnt--;
 			return rc;
 		}
 
@@ -3844,6 +3824,9 @@ static int msm_isp_request_frame(struct vfe_device *vfe_dev,
 			}
 			pr_err_ratelimited("%s:%d fail to cfg HAL buffer\n",
 				__func__, __LINE__);
+			queue_req->cmd_used = 0;
+			list_del(&queue_req->list);
+			stream_info->request_q_cnt--;
 			return rc;
 		}
 	} else {
