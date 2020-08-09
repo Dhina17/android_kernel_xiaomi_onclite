@@ -1,7 +1,7 @@
 #
 # Makefile for sensor chip drivers.
 #
-
+obj-y                           += bat_id.o
 obj-$(CONFIG_HWMON)		+= hwmon.o
 obj-$(CONFIG_HWMON_VID)		+= hwmon-vid.o
 
