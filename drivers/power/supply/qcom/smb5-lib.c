@@ -48,8 +48,6 @@
 	|| typec_mode == POWER_SUPPLY_TYPEC_SOURCE_HIGH)	\
 	&& !chg->typec_legacy)
 
-#define OTG_DISABLE_TIME	(10*60*1000)	//10min
-
 int smblib_read(struct smb_charger *chg, u16 addr, u8 *val)
 {
 	unsigned int value;
@@ -183,11 +181,6 @@ static void smblib_notify_usb_host(struct smb_charger *chg, bool enable)
 		smblib_notify_extcon_props(chg, EXTCON_USB_HOST);
 
 	extcon_set_state_sync(chg->extcon, EXTCON_USB_HOST, enable);
-}
-
-void smb5_notify_usb_host(struct smb_charger *chg, bool enable)
-{
-	smblib_notify_usb_host(chg, enable);
 }
 
 /********************
@@ -4184,16 +4177,8 @@ static void smblib_uusb_otg_work(struct work_struct *work)
 		goto out;
 	}
 	otg = !!(stat & U_USB_GROUND_NOVBUS_BIT);
-	if (chg->otg_present != otg) {
-		if (otg) {
-			if (chg->otg_en_ctrl)
-				smblib_notify_usb_host(chg, otg);
-		} else {
-			smblib_notify_usb_host(chg, otg);
-			if (chg->otg_en_ctrl)
-				alarm_start_relative(&chg->otg_ctrl_timer, ms_to_ktime(OTG_DISABLE_TIME));
-		}
-	}
+	if (chg->otg_present != otg)
+		smblib_notify_usb_host(chg, otg);
 	else
 		goto out;
 
