@@ -456,10 +456,6 @@ struct smb_charger {
 	u32			headroom_mode;
 	bool			flash_init_done;
 	bool			flash_active;
-
-	/* otg control */
-	bool			otg_en_ctrl;
-	struct alarm	otg_ctrl_timer;
 };
 
 int smblib_read(struct smb_charger *chg, u16 addr, u8 *val);
@@ -627,5 +623,4 @@ int smblib_get_prop_battery_full_design(struct smb_charger *chg,
 
 int smblib_init(struct smb_charger *chg);
 int smblib_deinit(struct smb_charger *chg);
-void smb5_notify_usb_host(struct smb_charger *chg, bool enable);
 #endif /* __SMB5_CHARGER_H */
