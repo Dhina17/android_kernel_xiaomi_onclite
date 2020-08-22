@@ -27,7 +27,6 @@
 #include <linux/regulator/machine.h>
 #include <linux/pmic-voter.h>
 #include <linux/qpnp/qpnp-adc.h>
-#include <linux/alarmtimer.h>
 #include "smb5-reg.h"
 #include "smb5-lib.h"
 #include "schgm-flash.h"
@@ -265,7 +264,6 @@ enum {
 };
 
 #define PMI632_MAX_ICL_UA	3000000
-#define OTG_DISABLE_TIME	(10*60*1000)	//10min
 static int smb5_chg_config_init(struct smb5 *chip)
 {
 	struct smb_charger *chg = &chip->chg;
@@ -644,7 +642,6 @@ static enum power_supply_property smb5_usb_props[] = {
 	POWER_SUPPLY_PROP_HVDCP_OPTI_ALLOWED,
 	POWER_SUPPLY_PROP_QC_OPTI_DISABLE,
 	POWER_SUPPLY_PROP_MOISTURE_DETECTED,
-	POWER_SUPPLY_PROP_USB_OTG,
 };
 
 static int smb5_usb_get_prop(struct power_supply *psy,
@@ -785,9 +782,6 @@ static int smb5_usb_get_prop(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_MOISTURE_DETECTED:
 		val->intval = chg->moisture_present;
-		break;
-	case POWER_SUPPLY_PROP_USB_OTG:
-		val->intval = chg->otg_present;
 		break;
 	default:
 		pr_err("get prop %d is not supported in usb\n", psp);
@@ -1290,7 +1284,6 @@ static enum power_supply_property smb5_batt_props[] = {
 	#ifdef XIAOMI_CHARGER_RUNIN
 	POWER_SUPPLY_PROP_CHARGING_ENABLED,//lct add for runin 20181105
 	#endif
-	POWER_SUPPLY_PROP_OTG_CTRL,
 };
 
 #define ITERM_SCALING_FACTOR_PMI632	1525
@@ -1469,9 +1462,6 @@ static int smb5_batt_get_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_FCC_STEPPER_ENABLE:
 		val->intval = chg->fcc_stepper_enable;
 		break;
-	case POWER_SUPPLY_PROP_OTG_CTRL:
-		val->intval = (int)chg->otg_en_ctrl;
-		break;
 	default:
 		pr_err("batt power supply prop %d not supported\n", psp);
 		return -EINVAL;
@@ -1483,17 +1473,6 @@ static int smb5_batt_get_prop(struct power_supply *psy,
 	}
 
 	return 0;
-}
-
-static void set_prop_otg_ctrl(struct smb_charger *chg, int value)
-{
-	chg->otg_en_ctrl = (bool)value;
-	if (value) {
-		if (chg->otg_present)
-			smb5_notify_usb_host(chg, value);
-		else
-			alarm_start_relative(&chg->otg_ctrl_timer, ms_to_ktime(OTG_DISABLE_TIME));
-	}
 }
 
 static int smb5_batt_set_prop(struct power_supply *psy,
@@ -1585,9 +1564,6 @@ static int smb5_batt_set_prop(struct power_supply *psy,
 					false, 0);
 		}
 		break;
-	case POWER_SUPPLY_PROP_OTG_CTRL:
-		set_prop_otg_ctrl(chg, val->intval);
-		break;
 	default:
 		rc = -EINVAL;
 	}
@@ -1614,7 +1590,6 @@ static int smb5_batt_prop_is_writeable(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_SW_JEITA_ENABLED:
 	case POWER_SUPPLY_PROP_DIE_HEALTH:
 	case POWER_SUPPLY_PROP_BATTERY_CHARGING_ENABLED:
-	case POWER_SUPPLY_PROP_OTG_CTRL:
 		return 1;
 	default:
 		break;
@@ -2962,24 +2937,6 @@ static int smb5_show_charger_status(struct smb5 *chip)
 	return rc;
 }
 
-static enum alarmtimer_restart otg_ctrl_timer_function(struct alarm *alarm, ktime_t now)
-{
-	int rc = 0;
-	union power_supply_propval pval = {0, };
-	struct smb_charger *chg = container_of(alarm, struct smb_charger, otg_ctrl_timer);
-
-	pr_info("Enter OTG Disable timer function.\n");
-
-	rc = power_supply_get_property(chg->usb_psy, POWER_SUPPLY_PROP_USB_OTG, &pval);
-	if (rc < 0)
-		pr_err("Could not get otg status. rc = %d. \n", rc);
-
-	if (pval.intval == 0)
-		chg->otg_en_ctrl = false;
-
-	return ALARMTIMER_NORESTART;
-}
-
 static int smb5_probe(struct platform_device *pdev)
 {
 	struct smb5 *chip;
@@ -3001,9 +2958,7 @@ static int smb5_probe(struct platform_device *pdev)
 	chg->irq_info = smb5_irqs;
 	chg->die_health = -EINVAL;
 	chg->otg_present = false;
-	chg->otg_en_ctrl = false;
 	mutex_init(&chg->vadc_lock);
-	alarm_init(&chg->otg_ctrl_timer, ALARM_BOOTTIME, otg_ctrl_timer_function);
 
 	chg->regmap = dev_get_regmap(chg->dev->parent, NULL);
 	if (!chg->regmap) {
@@ -3190,7 +3145,6 @@ static int smb5_remove(struct platform_device *pdev)
 	smb5_free_interrupts(chg);
 	smblib_deinit(chg);
 	platform_set_drvdata(pdev, NULL);
-	alarm_cancel(&chg->otg_ctrl_timer);
 	return 0;
 }
 
