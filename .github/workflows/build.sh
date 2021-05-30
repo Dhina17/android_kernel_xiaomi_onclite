@@ -17,6 +17,9 @@ function setup () {
     tar xvzf clang-r365631c.tar.gz -C clang
     rm clang-r365631c.tar.gz
 
+    # Clone AnyKernel3
+    https://github.com/Dhina17/AnyKernel3
+
 }
 
 function compile() {
@@ -37,6 +40,24 @@ function compile() {
                     CROSS_COMPILE=aarch64-linux-android-
 }
 
+function make_zip() {
+    cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3
+    cd AnyKernel3
+    zip -r9 Test-Kernel-onclite.zip *
+    cd ..
+}
+
+function send_zip() {
+    ZIP=$(echo AnyKernel3/*.zip)
+
+    # Send the zip to telegram through bot
+    curl -F document=@$ZIP "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument" \
+            -F chat_id="${CHAT_ID}" \
+
+
+}
 # Starts here
 setup
 compile
+make_zip
+send_zip
