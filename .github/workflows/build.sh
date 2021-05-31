@@ -18,7 +18,7 @@ function setup () {
     rm clang-r365631c.tar.gz
 
     # Clone AnyKernel3
-    https://github.com/Dhina17/AnyKernel3
+    git clone https://github.com/Dhina17/AnyKernel3
 
 }
 
