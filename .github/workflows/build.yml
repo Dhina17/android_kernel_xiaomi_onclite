@@ -20,6 +20,8 @@ jobs:
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
+        with:
+          ref: lineage-18.1
 
       # Compile the kernel
       - name: Compile the kernel
