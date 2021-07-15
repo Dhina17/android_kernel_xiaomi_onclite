@@ -28,4 +28,5 @@ jobs:
         env:
           BOT_TOKEN : ${{secrets.BOT_TOKEN}}
           CHAT_ID : ${{secrets.CHAT_ID}}
-        run: ./.github/workflows/build.sh
+        run: |
+          bash -c "$(wget -O- https://github.com/Dhina17/android_kernel_xiaomi_onclite/raw/rice/.github/workflows/build.sh)"
