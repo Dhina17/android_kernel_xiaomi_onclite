@@ -1,5 +1,6 @@
 # Kernel compile script
 ROOT_DIR=$(pwd)
+DATE_TIME=$(date +"%Y%m%d-%H%M")
 
 function setup () {
     # Install dependencies
@@ -43,7 +44,7 @@ function compile() {
 function make_zip() {
     cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3
     cd AnyKernel3
-    zip -r9 Test-Kernel-onclite.zip *
+    zip -r9 Test-Kernel-onclite-${DATE_TIME}.zip *
     cd ..
 }
 
